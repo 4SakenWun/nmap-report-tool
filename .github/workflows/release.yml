@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -17,7 +18,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Smoke test (no release on manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Workflow wired correctly."
+          echo "This was a manual run; no GitHub Release will be created."
+
       - name: Create GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
