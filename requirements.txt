@@ -1,0 +1,17 @@
+# Core dependencies for nmap vulnerability scanner
+
+# Report generation
+reportlab>=4.0.0        # PDF generation
+python-docx>=1.1.0      # DOCX generation
+
+# Optional dependencies (uncomment if needed in future)
+# For future AI integration:
+# openai>=1.0.0
+# anthropic>=0.7.0
+
+# For advanced parsing:
+# lxml>=4.9.0
+
+# For web interface (future expansion):
+# flask>=3.0.0
+# jinja2>=3.1.0

@@ -1,0 +1,109 @@
+MIT License with Additional Terms and Conditions
+
+Copyright (c) 2024 [Nmap Vulnerability Scanner & Report Generator]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+ADDITIONAL TERMS AND CONDITIONS FOR SECURITY TESTING SOFTWARE:
+
+1. AUTHORIZATION REQUIREMENT:
+   Users of this Software MUST obtain explicit written permission from the 
+   owner of any computer system, network, or infrastructure before performing
+   any security scanning, testing, or assessment activities.
+
+2. LEGAL COMPLIANCE:
+   Users MUST comply with all applicable local, state, national, and 
+   international laws and regulations, including but not limited to:
+   - Computer Fraud and Abuse Act (CFAA) - United States
+   - Computer Misuse Act 1990 - United Kingdom  
+   - EU Directive 2013/40/EU
+   - All similar legislation in other jurisdictions
+
+3. AUTHORIZED USE ONLY:
+   This Software is intended EXCLUSIVELY for:
+   - Authorized penetration testing with written contracts
+   - Security assessments on systems owned or managed by the user
+   - Educational purposes in controlled, legal lab environments
+   - Authorized bug bounty programs
+   - Legal Capture The Flag (CTF) competitions
+
+4. PROHIBITED USES:
+   This Software SHALL NOT be used for:
+   - Unauthorized access to computer systems
+   - Any illegal activities whatsoever
+   - Scanning systems without explicit written permission
+   - Any activities that violate terms of service or acceptable use policies
+
+5. NO LIABILITY:
+   The authors, contributors, and distributors of this Software accept
+   ABSOLUTELY NO LIABILITY for:
+   - Any misuse of this Software
+   - Any illegal activities conducted with this Software
+   - Any damages resulting from use or misuse of this Software
+   - Any criminal or civil legal consequences arising from use of this Software
+   - Any violations of law or policy by users of this Software
+
+6. USER RESPONSIBILITY:
+   By using this Software, users acknowledge and agree that they bear
+   FULL AND SOLE RESPONSIBILITY for:
+   - Ensuring they have proper authorization before scanning any system
+   - All consequences of their actions while using this Software
+   - Compliance with all applicable laws and regulations
+   - Any damages, legal fees, or penalties resulting from their use
+
+7. NO WARRANTY:
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+8. INDEMNIFICATION:
+   Users agree to indemnify, defend, and hold harmless the authors,
+   contributors, and distributors from any claims, damages, losses,
+   liabilities, costs, or expenses (including attorney fees) arising from
+   or related to user's use or misuse of this Software.
+
+9. SEVERABILITY:
+   If any provision of these terms is found to be unenforceable or invalid,
+   that provision shall be limited or eliminated to the minimum extent
+   necessary so that these terms shall otherwise remain in full force and
+   effect and enforceable.
+
+10. ACKNOWLEDGMENT:
+    BY USING THIS SOFTWARE, YOU ACKNOWLEDGE THAT YOU HAVE READ THESE TERMS,
+    UNDERSTAND THEM, AND AGREE TO BE BOUND BY THEM. IF YOU DO NOT AGREE TO
+    THESE TERMS, DO NOT USE THIS SOFTWARE.
+
+===============================================================================
+
+DISCLAIMER FOR SECURITY RESEARCHERS AND PENETRATION TESTERS:
+
+This software is a tool. Like any tool, it can be used for legitimate or
+illegitimate purposes. The authors have created this tool for the sole
+purpose of assisting authorized security professionals in conducting legal
+security assessments.
+
+The authors:
+- DO NOT condone or support any illegal use of this software
+- REQUIRE users to obtain proper authorization before scanning
+- ACCEPT NO RESPONSIBILITY for actions taken by users
+- ENCOURAGE responsible disclosure and ethical security practices
+- SUPPORT compliance with all applicable laws and professional standards
+
+===============================================================================
+
+For questions about appropriate use of this software or to report misuse,
+please contact the repository maintainer.
+
+Last Updated: November 13, 2024
