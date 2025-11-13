@@ -51,6 +51,54 @@ git push; git push origin v1.x.y
 
 Tip: For pre‑releases, tag as `v1.1.0-rc.1` and mark the release as a pre‑release on GitHub.
 
+### Auto GitHub Release (enabled)
+
+When a tag matching `v*` is pushed (e.g., `v1.2.0`), a GitHub Action automatically creates a Release with generated notes.
+
+No extra steps required beyond running the bump script (which pushes the tag):
+
+```powershell
+# Typical flow (auto-detect bump from commits)
+pwsh ./scripts/bump-release.ps1 -Auto
+
+# Or explicit bump
+pwsh ./scripts/bump-release.ps1 -Bump minor
+```
+
+This workflow lives at `.github/workflows/release.yml`.
+
+### Using the bump-release script (Windows PowerShell)
+
+The repo includes `scripts/bump-release.ps1` to automate version bumps, changelog, tagging, and pushing.
+
+Examples:
+
+```powershell
+# Patch bump (default) — reads commits since last tag for changelog
+pwsh ./scripts/bump-release.ps1
+
+# Explicit minor bump
+pwsh ./scripts/bump-release.ps1 -Bump minor
+
+# Explicit major bump
+pwsh ./scripts/bump-release.ps1 -Bump major
+
+# Auto mode (derives bump from commits: feat -> minor, breaking -> major)
+pwsh ./scripts/bump-release.ps1 -Auto
+
+# Pre-release (e.g., 1.2.0-rc.1)
+pwsh ./scripts/bump-release.ps1 -Bump minor -Pre rc.1
+
+# Do everything but skip pushing (for dry run)
+pwsh ./scripts/bump-release.ps1 -NoPush
+```
+
+What it does:
+- Updates `app_version.py` (__version__)
+- Updates the Version line in `README.md`
+- Prepends a new section to `CHANGELOG.md` using commits since the last tag
+- Creates an annotated tag and pushes (unless `-NoPush`)
+
 ### Legal Notice
 
 This software is provided for **EDUCATIONAL AND AUTHORIZED SECURITY TESTING PURPOSES ONLY**. By downloading, installing, or using this tool, you acknowledge and agree to the following terms:
