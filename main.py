@@ -29,6 +29,7 @@ import os
 from datetime import datetime
 from scanner.nmap_scanner import NmapScanner
 from reports.report_generator import ReportGenerator
+from app_version import __version__
 
 
 def print_banner():
@@ -85,6 +86,9 @@ LEGAL REMINDER:
   Use --skip-auth-check flag ONLY for authorized lab environments.
         '''
     )
+    
+    # Provide a standard --version flag
+    parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     
     parser.add_argument('-t', '--target', 
                        required=True,

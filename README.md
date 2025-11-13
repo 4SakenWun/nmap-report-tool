@@ -1,12 +1,55 @@
 # Nmap Vulnerability Scanner & Report Generator
-
 A Python-based penetration testing tool that automates nmap vulnerability scanning and generates professional reports in PDF, DOCX, or text format.
 
 ---
-
 ## ⚠️ LEGAL DISCLAIMER & WARNING ⚠️
 
 **READ THIS ENTIRE SECTION BEFORE USING THIS TOOL**
+## Versioning and Releases
+
+- Standard: Semantic Versioning (SemVer) — MAJOR.MINOR.PATCH
+   - MAJOR: incompatible changes
+   - MINOR: backwards‑compatible features
+   - PATCH: backwards‑compatible fixes
+
+- Single source of truth: `app_version.py` (`__version__`)
+   - Update this value on every release
+   - Use `python main.py --version` to verify
+
+- Changelog: `CHANGELOG.md` using Keep a Changelog format
+
+### How to cut a new release
+
+1) Update version and changelog
+```powershell
+# Edit version
+code .\app_version.py   # set __version__ = "1.x.y"
+
+# Update CHANGELOG.md with new section and date
+```
+
+2) Commit and tag
+```powershell
+git add app_version.py CHANGELOG.md README.md
+git commit -m "chore(release): 1.x.y"
+
+git tag -a v1.x.y -m "Release 1.x.y"
+
+git push; git push origin v1.x.y
+```
+
+3) Create GitHub Release
+- Open the repo → Releases → "Draft a new release"
+- Choose tag `v1.x.y`
+- Title: `1.x.y`
+- Click "Generate release notes" or paste from CHANGELOG
+- Publish
+
+4) Post‑release checklist
+- Verify `python main.py --version` prints the new version
+- Ensure README/QUICK_START examples still work
+
+Tip: For pre‑releases, tag as `v1.1.0-rc.1` and mark the release as a pre‑release on GitHub.
 
 ### Legal Notice
 
