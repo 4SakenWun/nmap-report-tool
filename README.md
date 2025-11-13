@@ -1,6 +1,8 @@
 # Nmap Vulnerability Scanner & Report Generator
 A Python-based penetration testing tool that automates nmap vulnerability scanning and generates professional reports in PDF, DOCX, or text format.
 
+Roadmap: See the planned enhancements and future CEH-friendly projects in [ROADMAP.md](./ROADMAP.md).
+
 ---
 ## ⚠️ LEGAL DISCLAIMER & WARNING ⚠️
 
