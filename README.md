@@ -364,7 +364,7 @@ python main.py -t <target> [options] -o <output_file>
 | `-p, --ports` | Specific ports to scan | Port ranges or comma-separated | All common ports |
 | `-v, --verbose` | Show detailed output during scan | Flag (no value needed) | Disabled |
 | `--skip-auth-check` | Skip authorization prompt | Flag (use ONLY for authorized labs) | Disabled |
-| `--format` | Explicit output format (overrides extension) | `pdf, docx, txt, html, md, json` | Inferred from `-o` |
+| `--format` | Explicit output format (overrides extension) | `pdf, docx, txt, html, md, json, csv` | Inferred from `-o` |
 | `--min-severity` | Minimum severity to include | `info, low, medium, high, critical` | none |
 | `--exclude-ports` | Comma-separated ports to exclude | e.g., `22,3389` | none |
 | `--exclude-services` | Comma-separated services to exclude | e.g., `ssh,rdp` | none |
@@ -432,7 +432,7 @@ Note: Only open ports are reported by design; `--only-open` is not needed.
 
 ### Output Format Selection
 
-Choose your report format based on your needs. You can set it by file extension in `-o` or explicitly with `--format` (`pdf|docx|txt|html|md|json`). If both are provided, `--format` wins.
+Choose your report format based on your needs. You can set it by file extension in `-o` or explicitly with `--format` (`pdf|docx|txt|html|md|json|csv`). If both are provided, `--format` wins.
 
 **PDF Reports** (`.pdf`)
 - Professional, polished appearance
@@ -1131,4 +1131,30 @@ Created by a Certified Ethical Hacker (CEH) for professional penetration testing
 ---
 
 *For educational and authorized security assessment purposes only.*
+
+---
+
+## Offline Demo (No Live Scans)
+
+Want to test the tool without touching a real target? Use the built-in sample Nmap XML and the `--xml` flag to generate reports completely offline. This avoids any network activity and is safe for demos and training.
+
+Lab‑safe commands (Windows PowerShell):
+
+```powershell
+# HTML report from sample XML (no network scan)
+python .\main.py --xml .\samples\nmap_sample.xml -o offline_demo.html --skip-auth-check
+
+# PDF report (ReportLab required)
+python .\main.py --xml .\samples\nmap_sample.xml -o offline_demo.pdf --skip-auth-check
+
+# Markdown report
+python .\main.py --xml .\samples\nmap_sample.xml -o offline_demo.md --skip-auth-check
+```
+
+Notes:
+- `--xml` parses an existing Nmap XML file (`.xml` or `.xml.gz`) and never runs a live scan.
+- `-t/--target` is optional in offline mode; the tool labels the target as `offline` unless you provide `-t`.
+- Keep using `--skip-auth-check` for offline demos to bypass the runtime authorization prompt.
+- This is the recommended way to practice report generation and verify formatting safely.
+
 

@@ -252,6 +252,35 @@ class ReportGenerator:
             json.dump(self.scan_results, f, indent=2)
         return output_path
 
+    def generate_csv(self, output_path: str) -> str:
+        """Generate a CSV with one row per open port per host."""
+        import csv
+        headers = [
+            'host_ip', 'hostnames', 'port', 'protocol', 'service', 'product', 'version',
+            'severity', 'risk_score'
+        ]
+        with open(output_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)
+            for host in self.scan_results.get('hosts', []):
+                ips = [a.get('address') for a in host.get('addresses', []) if a.get('type') in ('ipv4','ipv6')]
+                host_ip = ips[0] if ips else ''
+                hostnames = ";".join(host.get('hostnames', []))
+                for port in host.get('ports', []):
+                    svc = port.get('service') or {}
+                    writer.writerow([
+                        host_ip,
+                        hostnames,
+                        port.get('port',''),
+                        port.get('protocol',''),
+                        (svc.get('name','') if isinstance(svc, dict) else ''),
+                        (svc.get('product','') if isinstance(svc, dict) else ''),
+                        (svc.get('version','') if isinstance(svc, dict) else ''),
+                        str(port.get('severity','')).upper(),
+                        port.get('risk_score',0),
+                    ])
+        return output_path
+
     def generate_markdown(self, output_path: str) -> str:
         lines = []
         lines.append(f"# Vulnerability Scan Report\n")

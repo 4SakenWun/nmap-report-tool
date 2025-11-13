@@ -29,7 +29,7 @@ import os
 from datetime import datetime
 from scanner.nmap_scanner import NmapScanner
 from reports.report_generator import ReportGenerator
-from scanner.filters import apply_filters
+from scanner.filters import apply_filters, sort_results
 from app_version import __version__
 
 
@@ -92,8 +92,8 @@ LEGAL REMINDER:
     parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     
     parser.add_argument('-t', '--target', 
-                       required=True,
-                       help='Target IP address or hostname to scan')
+                       required=False,
+                       help='Target IP address or hostname to scan (optional when using --xml)')
     
     parser.add_argument('-s', '--scan-type',
                        choices=['basic', 'vuln', 'aggressive'],
@@ -108,8 +108,12 @@ LEGAL REMINDER:
                        help='Output file path. Extension may be overridden by --format.')
 
     parser.add_argument('--format',
-                       choices=['pdf', 'docx', 'txt', 'html', 'md', 'json'],
+                       choices=['pdf', 'docx', 'txt', 'html', 'md', 'json', 'csv'],
                        help='Explicit output format (overrides output file extension)')
+    
+    # Offline mode: generate a report from an existing Nmap XML file
+    parser.add_argument('--xml',
+                       help='Parse existing Nmap XML file (.xml or .xml.gz) instead of running a live scan')
     
     parser.add_argument('-v', '--verbose',
                        action='store_true',
@@ -130,12 +134,19 @@ LEGAL REMINDER:
     parser.add_argument('--only-uncommon-ports',
                        action='store_true',
                        help='Include only uncommon ports (excludes well-known/common ports)')
+
+    # Sorting options
+    parser.add_argument('--sort-by',
+                       choices=['risk', 'severity', 'port', 'none'],
+                       default='risk',
+                       help='Sort open ports in reports (default: risk)')
     
     args = parser.parse_args()
     
-    # Verify authorization unless skipped
-    if not args.skip_auth_check:
-        verify_authorization()
+    # Verify authorization unless skipped. For offline XML mode, authorization is not required.
+    if not args.xml:
+        if not args.skip_auth_check:
+            verify_authorization()
     
     # Determine output format
     requested_fmt = args.format
@@ -149,7 +160,7 @@ LEGAL REMINDER:
             output_path = base + desired_ext
         output_ext = desired_ext
     else:
-        output_ext = ext if ext in ['.pdf', '.docx', '.txt', '.html', '.md', '.json'] else ''
+        output_ext = ext if ext in ['.pdf', '.docx', '.txt', '.html', '.md', '.json', '.csv'] else ''
         if not output_ext:
             print("Error: Could not determine output format. Provide a supported extension or use --format.")
             sys.exit(1)
@@ -157,27 +168,38 @@ LEGAL REMINDER:
     # Initialize scanner
     scanner = NmapScanner()
     
-    # Check if nmap is installed
-    if not scanner.check_nmap_installed():
-        print("Error: nmap is not installed or not found in PATH")
-        print("Please install nmap:")
-        print("  - Linux: sudo apt-get install nmap")
-        print("  - macOS: brew install nmap")
-        print("  - Windows: Download from https://nmap.org/download.html")
+    using_offline_xml = bool(args.xml)
+    if not using_offline_xml and not args.target:
+        print("Error: Provide a target with -t/--target or an XML file with --xml.")
         sys.exit(1)
     
-    print(f"Starting {args.scan_type} scan on target: {args.target}")
-    if args.ports:
-        print(f"Scanning ports: {args.ports}")
-    print("This may take a few minutes...\n")
+    if not using_offline_xml:
+        # Live scan requires nmap to be installed
+        if not scanner.check_nmap_installed():
+            print("Error: nmap is not installed or not found in PATH")
+            print("Please install nmap:")
+            print("  - Linux: sudo apt-get install nmap")
+            print("  - macOS: brew install nmap")
+            print("  - Windows: Download from https://nmap.org/download.html")
+            sys.exit(1)
+        
+        print(f"Starting {args.scan_type} scan on target: {args.target}")
+        if args.ports:
+            print(f"Scanning ports: {args.ports}")
+        print("This may take a few minutes...\n")
     
     try:
-        # Run the scan
-        results = scanner.scan_target(
-            target=args.target,
-            scan_type=args.scan_type,
-            ports=args.ports
-        )
+        # Run the scan or parse existing XML
+        if using_offline_xml:
+            if args.verbose:
+                print(f"Parsing existing Nmap XML: {args.xml}")
+            results = scanner.parse_xml_file(args.xml, target=(args.target or 'offline'))
+        else:
+            results = scanner.scan_target(
+                target=args.target,
+                scan_type=args.scan_type,
+                ports=args.ports
+            )
 
         # Apply optional filters before generating reports
         if any([args.min_severity, args.exclude_ports, args.exclude_services, args.only_uncommon_ports]):
@@ -188,6 +210,9 @@ LEGAL REMINDER:
                 exclude_services=args.exclude_services,
                 only_uncommon_ports=args.only_uncommon_ports,
             )
+
+        # Apply sorting
+        results = sort_results(results, sort_by=args.sort_by)
         
         if args.verbose:
             summary = scanner.get_summary()
@@ -214,6 +239,8 @@ LEGAL REMINDER:
             output_file = report_gen.generate_markdown(output_path)
         elif output_ext == '.json':
             output_file = report_gen.generate_json(output_path)
+        elif output_ext == '.csv':
+            output_file = report_gen.generate_csv(output_path)
         else:
             print("Error: Unsupported output format.")
             sys.exit(1)

@@ -57,3 +57,37 @@ def apply_filters(
         host['ports'] = filtered_ports
 
     return results
+
+
+def sort_results(results: Dict, sort_by: str = 'risk') -> Dict:
+    """Sort ports within each host by the chosen strategy.
+
+    sort_by options:
+      - 'risk': descending by risk_score, then severity, then port
+      - 'severity': descending by severity, then risk, then port
+      - 'port': ascending by port number
+      - 'none': no sorting
+    """
+    if not results or sort_by == 'none':
+        return results
+
+    sev_rank = SEVERITY_ORDER
+    for host in results.get('hosts', []):
+        ports = host.get('ports', [])
+        if sort_by == 'port':
+            ports.sort(key=lambda p: int(p.get('port', 0)))
+        elif sort_by == 'severity':
+            ports.sort(key=lambda p: (
+                -sev_rank.get(str(p.get('severity','info')).lower(), 0),
+                -int(p.get('risk_score', 0)),
+                int(p.get('port', 0))
+            ))
+        else:  # 'risk' default
+            ports.sort(key=lambda p: (
+                -int(p.get('risk_score', 0)),
+                -sev_rank.get(str(p.get('severity','info')).lower(), 0),
+                int(p.get('port', 0))
+            ))
+        host['ports'] = ports
+
+    return results

@@ -77,6 +77,7 @@ python main.py -t 10.129.x.x -s basic -o htb_enum.txt -v --skip-auth-check
 - `.html` - Styled tables with severity colors
 - `.md` - Markdown tables for wikis and repos
 - `.json` - Structured output for automation
+- `.csv` - Flat rows for spreadsheets/automation
 
 Tip: Use `--format` to override the extension, e.g., `--format json -o scan`.
 
@@ -144,3 +145,26 @@ python main.py --help
 ---
 
 *For authorized use only - see LICENSE and README for full legal terms*
+
+---
+
+## Offline Demo (No Live Scans)
+
+Use the built-in sample XML with `--xml` to generate reports without touching the network. Safe for demos and practice.
+
+```powershell
+# HTML report from sample XML
+python .\main.py --xml .\samples\nmap_sample.xml -o offline_demo.html --skip-auth-check
+
+# PDF report (requires ReportLab)
+python .\main.py --xml .\samples\nmap_sample.xml -o offline_demo.pdf --skip-auth-check
+
+# Markdown report
+python .\main.py --xml .\samples\nmap_sample.xml -o offline_demo.md --skip-auth-check
+```
+
+Notes:
+- `--xml` parses an existing Nmap XML (`.xml`/`.xml.gz`) and does not run a scan.
+- `-t` is optional in offline mode; target defaults to `offline` unless provided.
+- Keep `--skip-auth-check` for offline runs to bypass the prompt.
+
