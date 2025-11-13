@@ -817,6 +817,8 @@ nmap_scanner_reports/
 
 This project is designed to be modular and extensible. Planned features include:
 
+For a broader, CEH-focused roadmap and additional project ideas, see [ROADMAP.md](./ROADMAP.md).
+
 - AI-powered vulnerability analysis and recommendations
 - Web-based dashboard interface
 - Database storage for historical scans
