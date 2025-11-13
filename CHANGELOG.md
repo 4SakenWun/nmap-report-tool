@@ -13,4 +13,4 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 - Legal disclaimers, authorization prompt, and `--skip-auth-check`
 - Comprehensive README and QUICK_START guide
 
-[1.0.0]: https://github.com/REPLACE_WITH_YOUR_USERNAME/REPO_NAME/releases/tag/v1.0.0
+[1.0.0]: https://github.com/4SakenWun/nmap-report-tool/releases/tag/v1.0.0
