@@ -36,6 +36,7 @@ class PortEntry:
     service: Optional[Service] = None
     scripts: List[ScriptFinding] = field(default_factory=list)
     severity: str = "info"
+    risk_score: int = 0
 
 
 @dataclass
@@ -45,6 +46,7 @@ class HostEntry:
     hostnames: List[str] = field(default_factory=list)
     ports: List[PortEntry] = field(default_factory=list)
     os: Optional[Dict[str, str]] = None
+    risk_score: int = 0
 
 
 @dataclass
@@ -53,6 +55,7 @@ class ScanResult:
     scan_time: str
     scanner_version: str
     hosts: List[HostEntry]
+    total_risk: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         def _convert(obj):
@@ -67,6 +70,7 @@ class ScanResult:
             "scan_time": self.scan_time,
             "scanner_version": self.scanner_version,
             "hosts": _convert(self.hosts),
+            "total_risk": self.total_risk,
         }
 
 
@@ -111,3 +115,25 @@ def heuristic_severity_for_finding(f: ScriptFinding) -> str:
     if "vulnerab" in text or "weak" in text or "insecure" in text:
         return "medium"
     return "info"
+
+
+RISK_POINTS = {"info": 0, "low": 1, "medium": 3, "high": 7, "critical": 10}
+
+
+def risk_score_for_port(port: PortEntry) -> int:
+    score = RISK_POINTS.get((port.severity or "info").lower(), 0)
+    # Uncommon port: slight bump
+    if port.port not in COMMON_PORTS:
+        score += 1
+    # Risky service: bump
+    svc_name = (port.service.name if port.service else "").lower()
+    if any(s in svc_name for s in RISKY_SERVICES):
+        score += 2
+    # Findings content can contribute
+    for f in port.scripts:
+        sev = (f.severity or "info").lower()
+        if sev == "high":
+            score += 3
+        elif sev == "medium":
+            score += 1
+    return score

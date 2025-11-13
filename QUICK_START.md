@@ -72,13 +72,23 @@ python main.py -t 10.129.x.x -s basic -o htb_enum.txt -v --skip-auth-check
 ## Output Formats
 
 - `.pdf` - Professional client reports
-- `.docx` - Editable draft reports  
+- `.docx` - Editable draft reports
 - `.txt` - Quick reference
+- `.html` - Styled tables with severity colors
+- `.md` - Markdown tables for wikis and repos
+- `.json` - Structured output for automation
+
+Tip: Use `--format` to override the extension, e.g., `--format json -o scan`.
 
 ## Flags
 
 - `-v` - Verbose output (recommended)
 - `--skip-auth-check` - Skip authorization prompt (labs only)
+- `--format` - Force output format: `pdf|docx|txt|html|md|json`
+- `--min-severity` - Filter by severity: `info|low|medium|high|critical`
+- `--exclude-ports` - Exclude ports (comma-separated): `22,3389`
+- `--exclude-services` - Exclude services: `ssh,rdp,smb`
+- `--only-uncommon-ports` - Exclude common well-known ports
 
 ## File Organization
 
@@ -90,7 +100,7 @@ cd ~/pentests/project_name
 # Run scans with numbered sequence
 python main.py -t target -o 01_discovery.txt
 python main.py -t target -s vuln -o 02_vulns.pdf
-python main.py -t target -p 80,443 -o 03_web.pdf
+python main.py -t target -p 80,443 -o 03_web.html --min-severity medium
 ```
 
 ## Security Checklist

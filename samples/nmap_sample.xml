@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<nmaprun scanner="nmap" args="nmap -sV -oX - target" start="1731500000" version="7.94">
+  <host>
+    <status state="up" reason="syn-ack"/>
+    <address addr="192.168.56.101" addrtype="ipv4"/>
+    <hostnames>
+      <hostname name="testhost.local"/>
+    </hostnames>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack"/>
+        <service name="ssh" product="OpenSSH" version="7.2p2"/>
+        <script id="ssh2-enum-algos" output="server supports weak ciphers"/>
+      </port>
+      <port protocol="tcp" portid="80">
+        <state state="open" reason="syn-ack"/>
+        <service name="http" product="Apache httpd" version="2.4.49"/>
+        <script id="http-vuln-cve2021-41773" output="VULNERABLE: Apache Path Traversal CVE-2021-41773"/>
+      </port>
+      <port protocol="tcp" portid="9999">
+        <state state="open" reason="syn-ack"/>
+        <service name="unknown"/>
+      </port>
+    </ports>
+    <os>
+      <osmatch name="Linux" accuracy="98"/>
+    </os>
+  </host>
+</nmaprun>

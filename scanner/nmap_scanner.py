@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Dict, List, Optional
 import platform
+import gzip
 from .models import (
     Address,
     Service,
@@ -18,6 +19,7 @@ from .models import (
     ScanResult,
     heuristic_severity_for_finding,
     heuristic_severity_for_port,
+    risk_score_for_port,
 )
 
 
@@ -113,15 +115,37 @@ class NmapScanner:
                     # clear processed element to save memory
                     root.remove(elem)
 
-            return ScanResult(
+            result = ScanResult(
                 target=target,
                 scan_time=self.scan_timestamp.strftime("%Y-%m-%d %H:%M:%S"),
                 scanner_version=scanner_version,
                 hosts=hosts,
             )
+            # Compute total risk
+            result.total_risk = sum(getattr(h, 'risk_score', 0) for h in hosts)
+            return result
 
         except ET.ParseError as e:
             raise RuntimeError(f"Failed to parse nmap output: {str(e)}")
+
+    def parse_xml_file(self, file_path: str, target: Optional[str] = None) -> Dict:
+        """Parse an existing nmap XML file (supports .gz). Useful for offline analysis/tests."""
+        try:
+            if file_path.endswith('.gz'):
+                with gzip.open(file_path, 'rt', encoding='utf-8') as f:
+                    xml_data = f.read()
+            else:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    xml_data = f.read()
+
+            # Use provided target or derive from file name
+            tgt = target or 'offline'
+            self.scan_timestamp = datetime.now()
+            scan_result = self._parse_xml_output(xml_data, tgt)
+            self.scan_results = scan_result.to_dict()
+            return self.scan_results
+        except Exception as e:
+            raise RuntimeError(f"Failed to parse XML file '{file_path}': {e}")
     
     def _parse_host(self, host_elem) -> Optional[HostEntry]:
         """Extract host information from XML element."""
@@ -165,13 +189,16 @@ class NmapScanner:
                     'accuracy': osmatch.get('accuracy', '0')
                 }
 
-        return HostEntry(
+        host_entry = HostEntry(
             status='up',
             addresses=host_addrs,
             hostnames=hostnames,
             ports=ports,
             os=host_os
         )
+        # Compute host risk from ports
+        host_entry.risk_score = sum(getattr(p, 'risk_score', 0) for p in ports)
+        return host_entry
     
     def _parse_port(self, port_elem) -> Optional[PortEntry]:
         """Extract port information from XML element."""
@@ -212,6 +239,7 @@ class NmapScanner:
             scripts=findings,
         )
         pe.severity = heuristic_severity_for_port(pe)
+        pe.risk_score = risk_score_for_port(pe)
         return pe
     
     def get_summary(self) -> Dict:

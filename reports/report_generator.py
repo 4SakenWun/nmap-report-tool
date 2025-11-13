@@ -1,11 +1,12 @@
 """
 Report generation module for scan results.
-Supports PDF and DOCX output formats.
+Supports PDF, DOCX, TXT, HTML, Markdown, and JSON output formats.
 """
 
 from datetime import datetime
 from typing import Dict, Optional
 import os
+import json
 
 
 class ReportGenerator:
@@ -14,6 +15,46 @@ class ReportGenerator:
     def __init__(self, scan_results: Dict):
         self.scan_results = scan_results
         self.report_date = datetime.now()
+
+    # ---------- Helpers ----------
+    def _severity_counts(self) -> Dict[str, int]:
+        counts = {"info": 0, "low": 0, "medium": 0, "high": 0, "critical": 0}
+        for host in self.scan_results.get('hosts', []):
+            for port in host.get('ports', []):
+                sev = (port.get('severity') or 'info').lower()
+                if sev in counts:
+                    counts[sev] += 1
+        return counts
+
+    def _severity_color(self, sev: str) -> str:
+        sev = (sev or 'info').lower()
+        return {
+            'critical': '#8B0000',
+            'high': '#E74C3C',
+            'medium': '#F39C12',
+            'low': '#27AE60',
+            'info': '#7F8C8D'
+        }.get(sev, '#7F8C8D')
+
+    def _severity_bar_flowable(self):
+        try:
+            from reportlab.graphics.shapes import Drawing, Rect
+            from reportlab.lib import colors as rlcolors
+        except Exception:
+            return None
+        counts = self._severity_counts()
+        total = sum(counts.values()) or 1
+        width = 400
+        height = 14
+        x = 0
+        drawing = Drawing(width, height)
+        for key in ['critical', 'high', 'medium', 'low', 'info']:
+            w = int(width * (counts.get(key, 0) / total))
+            if w <= 0:
+                continue
+            drawing.add(Rect(x, 0, w, height, fillColor=rlcolors.HexColor(self._severity_color(key))))
+            x += w
+        return drawing
     
     def generate_pdf(self, output_path: str) -> str:
         """
@@ -69,7 +110,8 @@ class ReportGenerator:
             ['Target:', self.scan_results.get('target', 'N/A')],
             ['Scan Date:', self.scan_results.get('scan_time', 'N/A')],
             ['Report Generated:', self.report_date.strftime('%Y-%m-%d %H:%M:%S')],
-            ['Scanner Version:', self.scan_results.get('scanner_version', 'N/A')]
+            ['Scanner Version:', self.scan_results.get('scanner_version', 'N/A')],
+            ['Total Risk Score:', str(self.scan_results.get('total_risk', 0))]
         ]
         
         summary_table = Table(summary_data, colWidths=[2*inch, 4*inch])
@@ -83,6 +125,26 @@ class ReportGenerator:
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey)
         ]))
         story.append(summary_table)
+        story.append(Spacer(1, 0.2 * inch))
+
+        # Severity summary
+        sev_counts = self._severity_counts()
+        sev_data = [['Severity', 'Count']]
+        for k in ['critical', 'high', 'medium', 'low', 'info']:
+            sev_data.append([k.capitalize(), str(sev_counts.get(k, 0))])
+        sev_table = Table(sev_data, colWidths=[2*inch, 1*inch])
+        sev_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        story.append(sev_table)
+        bar = self._severity_bar_flowable()
+        if bar:
+            story.append(Spacer(1, 0.1 * inch))
+            story.append(bar)
         story.append(Spacer(1, 0.3 * inch))
         
         # Host details
@@ -119,7 +181,7 @@ class ReportGenerator:
             if host.get('ports'):
                 story.append(Paragraph("Open Ports and Services", heading_style))
                 
-                port_data = [['Port', 'Protocol', 'Service', 'Version']]
+                port_data = [['Port', 'Protocol', 'Service', 'Version', 'Severity']]
                 for port in host.get('ports', []):
                     service = port.get('service', {})
                     service_name = service.get('name', 'unknown') if service else 'unknown'
@@ -134,10 +196,11 @@ class ReportGenerator:
                         port.get('port', ''),
                         port.get('protocol', ''),
                         service_name,
-                        version_info
+                        version_info,
+                        (port.get('severity') or 'info').upper()
                     ])
                 
-                port_table = Table(port_data, colWidths=[1*inch, 1*inch, 2*inch, 2*inch])
+                port_table = Table(port_data, colWidths=[0.8*inch, 0.9*inch, 1.8*inch, 1.8*inch, 0.9*inch])
                 port_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -149,6 +212,11 @@ class ReportGenerator:
                     ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
                 ]))
                 story.append(port_table)
+                story.append(Spacer(1, 0.2 * inch))
+
+                # Host risk
+                host_risk = str(host.get('risk_score', 0))
+                story.append(Paragraph(f"Risk Score: <b>{host_risk}</b>", styles['Normal']))
                 story.append(Spacer(1, 0.2 * inch))
                 
                 # Vulnerability findings
@@ -177,6 +245,157 @@ class ReportGenerator:
         
         # Build PDF
         doc.build(story)
+        return output_path
+
+    def generate_json(self, output_path: str) -> str:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(self.scan_results, f, indent=2)
+        return output_path
+
+    def generate_markdown(self, output_path: str) -> str:
+        lines = []
+        lines.append(f"# Vulnerability Scan Report\n")
+        lines.append(f"**Target:** {self.scan_results.get('target','N/A')}  ")
+        lines.append(f"**Scan Date:** {self.scan_results.get('scan_time','N/A')}  ")
+        lines.append(f"**Report Generated:** {self.report_date.strftime('%Y-%m-%d %H:%M:%S')}  ")
+        lines.append(f"**Scanner Version:** {self.scan_results.get('scanner_version','N/A')}  ")
+        lines.append(f"**Total Risk Score:** {self.scan_results.get('total_risk',0)}\n")
+
+        sev = self._severity_counts()
+        lines.append("## Severity Summary")
+        lines.append("| Severity | Count |\n|---|---|")
+        for k in ['critical','high','medium','low','info']:
+            lines.append(f"| {k.capitalize()} | {sev.get(k,0)} |")
+
+        # ASCII severity bar
+        total = sum(sev.values()) or 1
+        def bar(n):
+            width = 30
+            filled = int(width * (n/total))
+            return '█'*filled + ' '*(width - filled)
+        lines.append("\n```")
+        lines.append(f"CRIT |{bar(sev['critical'])}|")
+        lines.append(f"HIGH |{bar(sev['high'])}|")
+        lines.append(f"MED  |{bar(sev['medium'])}|")
+        lines.append(f"LOW  |{bar(sev['low'])}|")
+        lines.append(f"INFO |{bar(sev['info'])}|")
+        lines.append("``\n")
+
+        for host in self.scan_results.get('hosts', []):
+            lines.append("\n## Host Details")
+            addresses = ', '.join([a['address'] for a in host.get('addresses', [])])
+            hostnames = ', '.join(host.get('hostnames', [])) or 'N/A'
+            lines.append(f"- IP: {addresses}")
+            lines.append(f"- Hostnames: {hostnames}")
+            lines.append(f"- Status: {host.get('status','Unknown')}")
+            if host.get('os'):
+                lines.append(f"- OS: {host['os']['name']} ({host['os']['accuracy']}% accuracy)")
+
+            if host.get('ports'):
+                lines.append("\n### Open Ports and Services")
+                lines.append("| Port | Proto | Service | Version | Severity |\n|---|---|---|---|---|")
+                for port in host.get('ports', []):
+                    service = port.get('service') or {}
+                    svc_name = service.get('name','unknown')
+                    version_info = (service.get('product','') + ' ' + service.get('version','')).strip()
+                    lines.append(
+                        f"| {port.get('port','')} | {port.get('protocol','')} | {svc_name} | {version_info} | {(port.get('severity') or 'info').upper()} |"
+                    )
+
+                # Host risk
+                lines.append(f"\n**Host Risk Score:** {host.get('risk_score',0)}\n")
+                # Findings
+                findings = []
+                for p in host.get('ports', []):
+                    for sc in p.get('scripts', []):
+                        if 'vuln' in (sc.get('id','').lower()) or sc.get('output'):
+                            findings.append((p.get('port'), sc))
+                if findings:
+                    lines.append("\n### Potential Vulnerabilities")
+                    for portnum, sc in findings:
+                        lines.append(f"- **Port {portnum} - {sc.get('id','')}**\n")
+                        lines.append(f"  \n{sc.get('output','').strip()}\n")
+
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write("\n".join(lines))
+        return output_path
+
+    def generate_html(self, output_path: str) -> str:
+        css = """
+        body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;margin:20px}
+        h1,h2,h3{color:#2c3e50}
+        table{border-collapse:collapse;width:100%;margin:10px 0}
+        th,td{border:1px solid #ddd;padding:8px;font-size:14px}
+        th{background:#34495e;color:#fff;text-align:left}
+        tr:nth-child(even){background:#f8f9fa}
+        .sev{font-weight:bold;padding:2px 6px;border-radius:4px;color:#fff;display:inline-block}
+        .bar{height:14px;width:100%;background:#eee;border-radius:6px;overflow:hidden}
+        .seg{display:inline-block;height:100%}
+        """
+        def sev_span(s: str) -> str:
+            color = self._severity_color(s)
+            return f"<span class='sev' style='background:{color}'>{(s or 'info').upper()}</span>"
+
+        sev_counts = self._severity_counts()
+        parts = []
+        parts.append(f"<html><head><meta charset='utf-8'><style>{css}</style><title>Vulnerability Scan Report</title></head><body>")
+        parts.append(f"<h1>Vulnerability Scan Report</h1>")
+        parts.append(f"<p><b>Target:</b> {self.scan_results.get('target','N/A')}<br/>")
+        parts.append(f"<b>Scan Date:</b> {self.scan_results.get('scan_time','N/A')}<br/>")
+        parts.append(f"<b>Report Generated:</b> {self.report_date.strftime('%Y-%m-%d %H:%M:%S')}<br/>")
+        parts.append(f"<b>Scanner Version:</b> {self.scan_results.get('scanner_version','N/A')}<br/>")
+        parts.append(f"<b>Total Risk Score:</b> {self.scan_results.get('total_risk',0)}</p>")
+
+        parts.append("<h2>Severity Summary</h2>")
+        parts.append("<table><tr><th>Severity</th><th>Count</th></tr>")
+        for k in ['critical','high','medium','low','info']:
+            parts.append(f"<tr><td>{k.capitalize()}</td><td>{sev_counts.get(k,0)}</td></tr>")
+        parts.append("</table>")
+        total = sum(sev_counts.values()) or 1
+        def seg(width, color):
+            return f"<span class='seg' style='width:{width}%;background:{color}'></span>"
+        parts.append("<div class='bar'>")
+        for k in ['critical','high','medium','low','info']:
+            pct = 100 * (sev_counts.get(k,0) / total)
+            parts.append(seg(pct, self._severity_color(k)))
+        parts.append("</div>")
+
+        for host in self.scan_results.get('hosts', []):
+            parts.append("<h2>Host Details</h2>")
+            addresses = ', '.join([a['address'] for a in host.get('addresses', [])])
+            hostnames = ', '.join(host.get('hostnames', [])) or 'N/A'
+            parts.append(f"<p><b>IP:</b> {addresses}<br/><b>Hostnames:</b> {hostnames}<br/><b>Status:</b> {host.get('status','Unknown')}")
+            if host.get('os'):
+                parts.append(f"<br/><b>OS:</b> {host['os']['name']} ({host['os']['accuracy']}% accuracy)")
+            parts.append(f"<br/><b>Risk Score:</b> {host.get('risk_score',0)}")
+            parts.append("</p>")
+
+            if host.get('ports'):
+                parts.append("<h3>Open Ports and Services</h3>")
+                parts.append("<table><tr><th>Port</th><th>Proto</th><th>Service</th><th>Version</th><th>Severity</th></tr>")
+                for port in host.get('ports', []):
+                    service = port.get('service') or {}
+                    svc_name = service.get('name','unknown')
+                    version_info = (service.get('product','') + ' ' + service.get('version','')).strip()
+                    parts.append(
+                        f"<tr><td>{port.get('port','')}</td><td>{port.get('protocol','')}</td><td>{svc_name}</td><td>{version_info}</td><td>{sev_span(port.get('severity'))}</td></tr>"
+                    )
+                parts.append("</table>")
+
+                findings = []
+                for p in host.get('ports', []):
+                    for sc in p.get('scripts', []):
+                        if 'vuln' in (sc.get('id','').lower()) or sc.get('output'):
+                            findings.append((p.get('port'), sc))
+                if findings:
+                    parts.append("<h3>Potential Vulnerabilities</h3>")
+                    for portnum, sc in findings:
+                        parts.append(f"<p><b>Port {portnum} - {sc.get('id','')}</b><br/>{(sc.get('output','') or '').replace('\n','<br/>')}</p>")
+
+        parts.append("</body></html>")
+
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write("".join(parts))
         return output_path
     
     def generate_docx(self, output_path: str) -> str:

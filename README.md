@@ -1,5 +1,5 @@
 # Nmap Vulnerability Scanner & Report Generator
-A Python-based penetration testing tool that automates nmap vulnerability scanning and generates professional reports in PDF, DOCX, or text format.
+A Python-based penetration testing tool that automates nmap vulnerability scanning and generates professional reports in PDF, DOCX, text, HTML, Markdown, or JSON.
 
 Roadmap: See the planned enhancements and future CEH-friendly projects in [ROADMAP.md](./ROADMAP.md).
 
@@ -153,11 +153,12 @@ By using this software, you certify that:
 ## Features
 
 - **Multiple Scan Types**: Basic, vulnerability-focused, and aggressive scanning modes
-- **Professional Reports**: Generate reports in PDF, DOCX, or plain text format
+- **Professional Reports**: Generate reports in PDF, DOCX, text, HTML, Markdown, or JSON
 - **Cross-Platform**: Works on Linux (Kali, Ubuntu), macOS, and Windows
 - **Easy to Use**: Simple command-line interface
 - **Modular Design**: Easy to extend with additional features
 - **Detailed Output**: Service detection, version identification, and vulnerability findings
+- **Severity-Aware**: Severity per port/finding, summaries, and color-coding in HTML/PDF
 
 ## Prerequisites
 
@@ -353,7 +354,7 @@ python main.py -t <target> [options] -o <output_file>
 | Argument | Description | Example |
 |----------|-------------|---------|
 | `-t, --target` | Target IP address or hostname | `-t 192.168.1.1` or `-t example.com` |
-| `-o, --output` | Output file path (must end in .pdf, .docx, or .txt) | `-o scan_report.pdf` |
+| `-o, --output` | Output file path (use extension or `--format`) | `-o scan_report.html` |
 
 ### Optional Arguments
 
@@ -363,6 +364,11 @@ python main.py -t <target> [options] -o <output_file>
 | `-p, --ports` | Specific ports to scan | Port ranges or comma-separated | All common ports |
 | `-v, --verbose` | Show detailed output during scan | Flag (no value needed) | Disabled |
 | `--skip-auth-check` | Skip authorization prompt | Flag (use ONLY for authorized labs) | Disabled |
+| `--format` | Explicit output format (overrides extension) | `pdf, docx, txt, html, md, json` | Inferred from `-o` |
+| `--min-severity` | Minimum severity to include | `info, low, medium, high, critical` | none |
+| `--exclude-ports` | Comma-separated ports to exclude | e.g., `22,3389` | none |
+| `--exclude-services` | Comma-separated services to exclude | e.g., `ssh,rdp` | none |
+| `--only-uncommon-ports` | Exclude common well-known ports | Flag | Disabled |
 
 **IMPORTANT**: By default, the scanner will prompt you to confirm you have written authorization. This is a safety measure to prevent accidental unauthorized scanning. Use `--skip-auth-check` ONLY when working in authorized lab environments like TryHackMe, HackTheBox, or your own test systems.
 
@@ -407,9 +413,26 @@ python main.py -t 10.0.0.1 -p 1-1000 -o first_1000_ports.pdf
 python main.py -t 192.168.1.1 -p 22,80,443,3000-4000 -o custom_scan.pdf
 ```
 
+### Filtering and Prioritization
+
+Filter results before rendering the report:
+
+```bash
+# Only include Medium+ and drop SSH/RDP
+python main.py -t 10.0.0.5 -s vuln -o filtered.md --min-severity medium --exclude-services ssh,rdp
+
+# Exclude specific ports and show only uncommon ones
+python main.py -t 10.0.0.5 -o filtered.html --exclude-ports 22,3389 --only-uncommon-ports
+
+# Force JSON format regardless of extension
+python main.py -t 10.0.0.5 --format json -o scan
+```
+
+Note: Only open ports are reported by design; `--only-open` is not needed.
+
 ### Output Format Selection
 
-Choose your report format based on your needs:
+Choose your report format based on your needs. You can set it by file extension in `-o` or explicitly with `--format` (`pdf|docx|txt|html|md|json`). If both are provided, `--format` wins.
 
 **PDF Reports** (`.pdf`)
 - Professional, polished appearance
@@ -428,6 +451,21 @@ Choose your report format based on your needs:
 - Lightweight and fast
 - Best for: Quick reference, command-line viewing
 - Example: `python main.py -t target.com -o quick_scan.txt`
+
+**HTML Reports** (`.html`)
+- Styled tables with color-coded severities and summaries
+- Best for: Quick sharing or viewing in a browser
+- Example: `python main.py -t target.com -o report.html`
+
+**Markdown Reports** (`.md`)
+- Portable tables with severity column
+- Best for: Wikis, code reviews, and versioning
+- Example: `python main.py -t target.com -o report.md`
+
+**JSON Exports** (`.json`)
+- Canonical structured output for automation
+- Best for: Pipelines and integrations
+- Example: `python main.py -t target.com -o out.json` or `--format json`
 
 ## Practical Examples
 
@@ -788,6 +826,18 @@ ls -lh  # Verify all reports are present
 - Quick overview of scan results
 - Useful for quick reference or command-line viewing
 
+### HTML Reports
+- Clean layout with inline CSS and severity badges
+- Includes a severity summary table
+
+### Markdown Reports
+- Portable tables for wikis and version control
+- Includes severity column and summary
+
+### JSON Exports
+- Canonical structure used internally across renderers
+- Ideal for downstream automation and pipelines
+
 ## Project Structure
 
 ```
@@ -1075,7 +1125,7 @@ Created by a Certified Ethical Hacker (CEH) for professional penetration testing
 
 ---
 
-**Last Updated**: November 13, 2024  
+**Last Updated**: November 13, 2025  
 **Version**: 1.0.0
 
 ---
