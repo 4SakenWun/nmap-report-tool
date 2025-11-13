@@ -4,11 +4,21 @@ Handles target scanning and result parsing.
 """
 
 import subprocess
-import json
+import io
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Dict, List, Optional
 import platform
+from .models import (
+    Address,
+    Service,
+    ScriptFinding,
+    PortEntry,
+    HostEntry,
+    ScanResult,
+    heuristic_severity_for_finding,
+    heuristic_severity_for_port,
+)
 
 
 class NmapScanner:
@@ -67,75 +77,75 @@ class NmapScanner:
         
         try:
             self.scan_timestamp = datetime.now()
-            result = subprocess.run(cmd, 
-                                  capture_output=True, 
-                                  text=True,
-                                  timeout=300)  # 5 min timeout
-            
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=300
+            )  # 5 min timeout
+
             if result.returncode != 0:
                 raise RuntimeError(f"Nmap scan failed: {result.stderr}")
-            
-            # Parse XML output
-            self.scan_results = self._parse_xml_output(result.stdout, target)
+
+            # Parse XML output with streaming iterparse
+            scan_result = self._parse_xml_output(result.stdout, target)
+            self.scan_results = scan_result.to_dict()
             return self.scan_results
-            
+
         except subprocess.TimeoutExpired:
             raise RuntimeError("Scan timed out after 5 minutes")
         except Exception as e:
             raise RuntimeError(f"Scan error: {str(e)}")
     
-    def _parse_xml_output(self, xml_data: str, target: str) -> Dict:
-        """Parse nmap XML output into structured data."""
+    def _parse_xml_output(self, xml_data: str, target: str) -> ScanResult:
+        """Parse nmap XML output into structured dataclasses using iterparse."""
         try:
-            root = ET.fromstring(xml_data)
+            # iterparse expects a file-like
+            f = io.StringIO(xml_data)
+            context = ET.iterparse(f, events=("start", "end"))
+            _, root = next(context)  # get root element
+
+            scanner_version = root.get("version", "Unknown")
+            hosts: List[HostEntry] = []
             
-            results = {
-                'target': target,
-                'scan_time': self.scan_timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-                'scanner_version': root.get('version', 'Unknown'),
-                'hosts': []
-            }
-            
-            # Parse each host
-            for host in root.findall('host'):
-                host_data = self._parse_host(host)
-                if host_data:
-                    results['hosts'].append(host_data)
-            
-            return results
-            
+            for event, elem in context:
+                if event == "end" and elem.tag == "host":
+                    host_data = self._parse_host(elem)
+                    if host_data:
+                        hosts.append(host_data)
+                    # clear processed element to save memory
+                    root.remove(elem)
+
+            return ScanResult(
+                target=target,
+                scan_time=self.scan_timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                scanner_version=scanner_version,
+                hosts=hosts,
+            )
+
         except ET.ParseError as e:
             raise RuntimeError(f"Failed to parse nmap output: {str(e)}")
     
-    def _parse_host(self, host_elem) -> Optional[Dict]:
+    def _parse_host(self, host_elem) -> Optional[HostEntry]:
         """Extract host information from XML element."""
         # Check if host is up
         status = host_elem.find('status')
         if status is None or status.get('state') != 'up':
             return None
         
-        host_data = {
-            'status': 'up',
-            'addresses': [],
-            'hostnames': [],
-            'ports': [],
-            'os': None
-        }
+        host_addrs: List[Address] = []
+        hostnames: List[str] = []
+        ports: List[PortEntry] = []
+        host_os = None
         
         # Get addresses
         for addr in host_elem.findall('address'):
             addr_type = addr.get('addrtype', 'unknown')
             addr_val = addr.get('addr', '')
-            host_data['addresses'].append({
-                'type': addr_type,
-                'address': addr_val
-            })
+            host_addrs.append(Address(type=addr_type, address=addr_val))
         
         # Get hostnames
         hostnames_elem = host_elem.find('hostnames')
         if hostnames_elem is not None:
             for hostname in hostnames_elem.findall('hostname'):
-                host_data['hostnames'].append(hostname.get('name', ''))
+                hostnames.append(hostname.get('name', ''))
         
         # Get port information
         ports_elem = host_elem.find('ports')
@@ -143,53 +153,66 @@ class NmapScanner:
             for port in ports_elem.findall('port'):
                 port_data = self._parse_port(port)
                 if port_data:
-                    host_data['ports'].append(port_data)
+                    ports.append(port_data)
         
         # Get OS detection if available
         os_elem = host_elem.find('os')
         if os_elem is not None:
             osmatch = os_elem.find('osmatch')
             if osmatch is not None:
-                host_data['os'] = {
+                host_os = {
                     'name': osmatch.get('name', 'Unknown'),
                     'accuracy': osmatch.get('accuracy', '0')
                 }
-        
-        return host_data
+
+        return HostEntry(
+            status='up',
+            addresses=host_addrs,
+            hostnames=hostnames,
+            ports=ports,
+            os=host_os
+        )
     
-    def _parse_port(self, port_elem) -> Optional[Dict]:
+    def _parse_port(self, port_elem) -> Optional[PortEntry]:
         """Extract port information from XML element."""
         state = port_elem.find('state')
         if state is None or state.get('state') != 'open':
             return None
         
-        port_data = {
-            'port': port_elem.get('portid', ''),
-            'protocol': port_elem.get('protocol', ''),
-            'state': state.get('state', ''),
-            'service': None,
-            'scripts': []
-        }
+        port_id = int(port_elem.get('portid', '0') or 0)
+        protocol = port_elem.get('protocol', '')
+        port_service: Optional[Service] = None
+        findings: List[ScriptFinding] = []
         
         # Get service information
         service = port_elem.find('service')
         if service is not None:
-            port_data['service'] = {
-                'name': service.get('name', 'unknown'),
-                'product': service.get('product', ''),
-                'version': service.get('version', ''),
-                'extrainfo': service.get('extrainfo', '')
-            }
+            port_service = Service(
+                name=service.get('name', 'unknown'),
+                product=service.get('product', ''),
+                version=service.get('version', ''),
+                extrainfo=service.get('extrainfo', ''),
+            )
         
         # Get script output (vulnerabilities, etc.)
         for script in port_elem.findall('script'):
-            script_data = {
-                'id': script.get('id', ''),
-                'output': script.get('output', '')
-            }
-            port_data['scripts'].append(script_data)
-        
-        return port_data
+            sf = ScriptFinding(
+                id=script.get('id', ''),
+                output=script.get('output', '')
+            )
+            sf.severity = heuristic_severity_for_finding(sf)
+            findings.append(sf)
+
+        # Build port entry and compute severity
+        pe = PortEntry(
+            port=port_id,
+            protocol=protocol,
+            state=state.get('state', ''),
+            service=port_service,
+            scripts=findings,
+        )
+        pe.severity = heuristic_severity_for_port(pe)
+        return pe
     
     def get_summary(self) -> Dict:
         """Generate a summary of scan results."""

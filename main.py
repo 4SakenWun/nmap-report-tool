@@ -29,6 +29,7 @@ import os
 from datetime import datetime
 from scanner.nmap_scanner import NmapScanner
 from reports.report_generator import ReportGenerator
+from scanner.filters import apply_filters
 from app_version import __version__
 
 
@@ -104,7 +105,11 @@ LEGAL REMINDER:
     
     parser.add_argument('-o', '--output',
                        required=True,
-                       help='Output file path (.pdf, .docx, or .txt)')
+                       help='Output file path. Extension may be overridden by --format.')
+
+    parser.add_argument('--format',
+                       choices=['pdf', 'docx', 'txt', 'html', 'md', 'json'],
+                       help='Explicit output format (overrides output file extension)')
     
     parser.add_argument('-v', '--verbose',
                        action='store_true',
@@ -113,6 +118,18 @@ LEGAL REMINDER:
     parser.add_argument('--skip-auth-check',
                        action='store_true',
                        help='Skip authorization prompt (use only for authorized lab environments)')
+
+    # Filtering options
+    parser.add_argument('--min-severity',
+                       choices=['info', 'low', 'medium', 'high', 'critical'],
+                       help='Minimum severity to include in reports')
+    parser.add_argument('--exclude-ports',
+                       help='Comma-separated list of ports to exclude (e.g., 22,3389)')
+    parser.add_argument('--exclude-services',
+                       help='Comma-separated list of service names to exclude (e.g., ssh,rdp,smb)')
+    parser.add_argument('--only-uncommon-ports',
+                       action='store_true',
+                       help='Include only uncommon ports (excludes well-known/common ports)')
     
     args = parser.parse_args()
     
@@ -120,11 +137,22 @@ LEGAL REMINDER:
     if not args.skip_auth_check:
         verify_authorization()
     
-    # Determine output format from file extension
-    output_ext = os.path.splitext(args.output)[1].lower()
-    if output_ext not in ['.pdf', '.docx', '.txt']:
-        print("Error: Output file must have .pdf, .docx, or .txt extension")
-        sys.exit(1)
+    # Determine output format
+    requested_fmt = args.format
+    output_path = args.output
+    base, ext = os.path.splitext(output_path)
+    ext = ext.lower()
+    if requested_fmt:
+        desired_ext = f".{requested_fmt.lower()}"
+        if ext != desired_ext:
+            # Replace or append extension to match requested format
+            output_path = base + desired_ext
+        output_ext = desired_ext
+    else:
+        output_ext = ext if ext in ['.pdf', '.docx', '.txt', '.html', '.md', '.json'] else ''
+        if not output_ext:
+            print("Error: Could not determine output format. Provide a supported extension or use --format.")
+            sys.exit(1)
     
     # Initialize scanner
     scanner = NmapScanner()
@@ -150,6 +178,16 @@ LEGAL REMINDER:
             scan_type=args.scan_type,
             ports=args.ports
         )
+
+        # Apply optional filters before generating reports
+        if any([args.min_severity, args.exclude_ports, args.exclude_services, args.only_uncommon_ports]):
+            results = apply_filters(
+                results,
+                min_severity=args.min_severity,
+                exclude_ports=args.exclude_ports,
+                exclude_services=args.exclude_services,
+                only_uncommon_ports=args.only_uncommon_ports,
+            )
         
         if args.verbose:
             summary = scanner.get_summary()
@@ -165,11 +203,20 @@ LEGAL REMINDER:
         report_gen = ReportGenerator(results)
         
         if output_ext == '.pdf':
-            output_file = report_gen.generate_pdf(args.output)
+            output_file = report_gen.generate_pdf(output_path)
         elif output_ext == '.docx':
-            output_file = report_gen.generate_docx(args.output)
-        else:  # .txt
-            output_file = report_gen.generate_text(args.output)
+            output_file = report_gen.generate_docx(output_path)
+        elif output_ext == '.txt':
+            output_file = report_gen.generate_text(output_path)
+        elif output_ext == '.html':
+            output_file = report_gen.generate_html(output_path)
+        elif output_ext == '.md':
+            output_file = report_gen.generate_markdown(output_path)
+        elif output_ext == '.json':
+            output_file = report_gen.generate_json(output_path)
+        else:
+            print("Error: Unsupported output format.")
+            sys.exit(1)
         
         print(f"Report generated successfully: {output_file}")
         print(f"\nScan completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
